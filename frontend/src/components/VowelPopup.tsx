@@ -1,80 +1,108 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 
 interface VowelPopupProps {
-    baseLetter: string;
-    predictions: string[];
-    onSelect: (value: string) => void;
+    predictions: string[];                 // full list (up to 10)
+    onSelect: (value: string) => void;     // choose a vowel form
     onClose: () => void;
     position: { top: number; left: number };
 }
 
+/**
+ * Gaze-friendly popup:
+ * - Exactly 6 max buttons per page: 5 suggestions + 1 control (More or Back)
+ * - Big hit targets for eye control
+ * - Page 1: items[0..4] + "More" (if >5 exist)
+ * - Page 2: items[5..9] + "Back"
+ */
 const VowelPopup: React.FC<VowelPopupProps> = ({
-                                                   baseLetter,
                                                    predictions,
                                                    onSelect,
                                                    onClose,
                                                    position,
                                                }) => {
-    const [visibleStartIndex, setVisibleStartIndex] = useState(0);
-    const batchSize = 5;
-    const isMoreAvailable = visibleStartIndex + batchSize < predictions.length;
+    const PAGE_SIZE = 5;
+    const [page, setPage] = useState<0 | 1>(0);
 
-    const visibleOptions = predictions.slice(
-        visibleStartIndex,
-        visibleStartIndex + batchSize
-    );
-    const allOptions = [baseLetter, ...visibleOptions];
+    const hasSecondPage = predictions.length > PAGE_SIZE;
 
-    if (isMoreAvailable) {
-        allOptions.push("More");
-    }
+    const pageItems = useMemo(() => {
+        const start = page === 0 ? 0 : PAGE_SIZE;
+        const end = start + PAGE_SIZE;
+        return predictions.slice(start, end);
+    }, [predictions, page]);
 
-    const radius = 80;
-    const angleStep = (2 * Math.PI) / allOptions.length;
+    const controlLabel = useMemo(() => {
+        if (!hasSecondPage) return null;
+        return page === 0 ? "More" : "Back";
+    }, [hasSecondPage, page]);
+
+    // Visuals tuned for gaze: big radius and big buttons
+    const radius = 170;             // overall popup radius (px)
+    const innerRadius = radius * 0.62;
+    const buttonSize = 82;          // button diameter
+    const fontSize = 28;
+
+    // Arrange up to 6 items evenly on a circle
+    const options = controlLabel ? [...pageItems, controlLabel] : pageItems;
+    const angleStep = (2 * Math.PI) / Math.max(options.length, 1);
 
     const handleClick = (option: string) => {
         if (option === "More") {
-            setVisibleStartIndex((prev) => prev + batchSize);
-        } else {
-            onSelect(option);
-            onClose();
+            setPage(1);
+            return;
         }
+        if (option === "Back") {
+            setPage(0);
+            return;
+        }
+        onSelect(option);
+        onClose();
     };
 
     return (
         <div
             style={{
                 position: "absolute",
-                top: position.top,
-                left: position.left,
-                width: 2 * radius,
-                height: 2 * radius,
+                top: position.top - radius + buttonSize / 2,   // center roughly on key
+                left: position.left - radius + buttonSize / 2,
+                width: radius * 2,
+                height: radius * 2,
                 borderRadius: "50%",
-                backgroundColor: "#f0f8ff",
+                background: "rgba(240, 248, 255, 0.95)",
+                boxShadow: "0 8px 28px rgba(0,0,0,0.18)",
+                border: "2px solid #bcd8ff",
                 zIndex: 1000,
             }}
         >
-            {allOptions.map((option, i) => {
-                const angle = angleStep * i;
-                const x = radius + radius * 0.6 * Math.cos(angle) - 20;
-                const y = radius + radius * 0.6 * Math.sin(angle) - 20;
-                const bg =
-                    option === baseLetter ? "#d0e7ff" : option === "More" ? "#ffe066" : "#b3ffd9";
+            {options.map((option, i) => {
+                const angle = angleStep * i - Math.PI / 2; // start at top
+                const x = radius + innerRadius * Math.cos(angle) - buttonSize / 2;
+                const y = radius + innerRadius * Math.sin(angle) - buttonSize / 2;
+
+                const isControl = option === "More" || option === "Back";
+                const bg = isControl ? "#ffe08a" : "#b3ffd9";
+
                 return (
                     <button
-                        key={i}
+                        key={`${option}-${i}`}
                         onClick={() => handleClick(option)}
                         style={{
                             position: "absolute",
                             left: x,
                             top: y,
-                            width: 40,
-                            height: 40,
+                            width: buttonSize,
+                            height: buttonSize,
                             borderRadius: "50%",
                             backgroundColor: bg,
-                            fontSize: 16,
-                            border: "1px solid #ccc",
+                            border: "2px solid #888",
+                            fontSize,
+                            fontWeight: 600,
                             cursor: "pointer",
+                            outline: "none",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            padding: 0,
                         }}
                     >
                         {option}
