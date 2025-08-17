@@ -1,0 +1,1 @@
+# Placeholder for WebSocket gaze data stream
