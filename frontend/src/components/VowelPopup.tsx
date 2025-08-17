@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 
 interface VowelPopupProps {
-    predictions: string[];                 // full list (up to 10)
+    predictions: string[];                 // full list (up to ~10)
     onSelect: (value: string) => void;     // choose a vowel form
     onClose: () => void;
     position: { top: number; left: number };
@@ -9,8 +9,8 @@ interface VowelPopupProps {
 
 /**
  * Gaze-friendly popup:
- * - Exactly 6 max buttons per page: 5 suggestions + 1 control (More or Back)
- * - Big hit targets for eye control
+ * - Max 6 buttons per page: 5 suggestions + 1 control (More/Back)
+ * - Large circular layout with big hit targets
  * - Page 1: items[0..4] + "More" (if >5 exist)
  * - Page 2: items[5..9] + "Back"
  */
@@ -36,13 +36,13 @@ const VowelPopup: React.FC<VowelPopupProps> = ({
         return page === 0 ? "More" : "Back";
     }, [hasSecondPage, page]);
 
-    // Visuals tuned for gaze: big radius and big buttons
-    const radius = 170;             // overall popup radius (px)
+    // Visuals tuned for gaze
+    const radius = 170;             // popup radius (px)
     const innerRadius = radius * 0.62;
-    const buttonSize = 82;          // button diameter
+    const buttonSize = 82;          // target size
     const fontSize = 28;
 
-    // Arrange up to 6 items evenly on a circle
+    // Arrange up to 6 items evenly around a circle
     const options = controlLabel ? [...pageItems, controlLabel] : pageItems;
     const angleStep = (2 * Math.PI) / Math.max(options.length, 1);
 
@@ -61,14 +61,15 @@ const VowelPopup: React.FC<VowelPopupProps> = ({
 
     return (
         <div
+            data-vowel-popup  // 👈 marks this region for shorter dwell timing
             style={{
                 position: "absolute",
-                top: position.top - radius + buttonSize / 2,   // center roughly on key
+                top: position.top - radius + buttonSize / 2,   // roughly center on key
                 left: position.left - radius + buttonSize / 2,
                 width: radius * 2,
                 height: radius * 2,
                 borderRadius: "50%",
-                background: "rgba(240, 248, 255, 0.95)",
+                background: "rgba(240, 248, 255, 0.96)",
                 boxShadow: "0 8px 28px rgba(0,0,0,0.18)",
                 border: "2px solid #bcd8ff",
                 zIndex: 1000,

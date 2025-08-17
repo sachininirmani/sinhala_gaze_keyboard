@@ -2,6 +2,13 @@ import React, { useState, useRef } from "react";
 import axios from "axios";
 import VowelPopup from "./VowelPopup";
 
+// 👇 NEW: gaze hooks & indicator
+import { useGaze } from "../gaze/useGaze";
+import { useDwell } from "../gaze/useDwell";
+import GazeIndicator from "../gaze/GazeIndicator";
+import QuickAffineCalibration from "../gaze/QuickAffineCalibration";
+import TopBiasTuner from "../gaze/TopBiasTuner";
+
 const firstStageLetters: string[][] = [
     ["ණ", "න", "ව", "ය", "ක", "ර"],
     ["ශ", "ම", "ත", "ල", "ස", "ද"],
@@ -48,6 +55,18 @@ const Keyboard: React.FC = () => {
     } | null>(null);
 
     const containerRef = useRef<HTMLDivElement>(null);
+    const [showCal4, setShowCal4] = useState(false);
+    const [showBias, setShowBias] = useState(false);
+
+    // 👇 NEW: receive gaze (pixels) and run dwell selection
+    const gaze = useGaze("ws://127.0.0.1:7777");
+    const { progress } = useDwell(gaze.x, gaze.y, {
+        stabilizationMs: 120,
+        stabilityRadiusPx: 90,
+        dwellMs: 650,        // main keys
+        dwellMsPopup: 400,   // faster inside big popup
+        refractoryMs: 200,
+    });
 
     const getCurrentLayout = () => {
         if (showNumbers) return numbers;
@@ -79,7 +98,7 @@ const Keyboard: React.FC = () => {
             if (Array.isArray(vowelRes.data) && vowelRes.data.length > 0 && containerRef.current) {
                 const rect = (e.target as HTMLElement).getBoundingClientRect();
                 setVowelPopup({
-                    options: vowelRes.data, // full list (up to 10); popup will page to 5
+                    options: vowelRes.data, // backend can return up to 10; popup paginates to 5-per-page
                     position: {
                         top: rect.top - containerRef.current.offsetTop,
                         left: rect.left - containerRef.current.offsetLeft,
@@ -220,6 +239,11 @@ const Keyboard: React.FC = () => {
                 >
                     ⌫ Delete
                 </button>
+
+                <button onClick={() => setShowCal4(true)} style={controlButtonStyle}>
+                    Recalibrate (4-pt)
+                </button>
+                <button onClick={() => setShowBias(true)} style={controlButtonStyle}>Top Bias</button>
             </div>
 
             {/* vowel popup */}
@@ -231,6 +255,11 @@ const Keyboard: React.FC = () => {
                     position={vowelPopup.position}
                 />
             )}
+            {showCal4 && <QuickAffineCalibration onDone={() => setShowCal4(false)} />}
+            {showBias && <TopBiasTuner onClose={() => setShowBias(false)} />}
+
+            {/* 👇 NEW: always-on gaze dot + dwell progress ring */}
+            <GazeIndicator x={gaze.x} y={gaze.y} progress={progress} />
         </div>
     );
 };
