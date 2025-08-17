@@ -2,7 +2,7 @@ import React, { useState, useRef } from "react";
 import axios from "axios";
 import VowelPopup from "./VowelPopup";
 
-// 👇 NEW: gaze hooks & indicator
+// 👇 gaze hooks & indicator
 import { useGaze } from "../gaze/useGaze";
 import { useDwell } from "../gaze/useDwell";
 import GazeIndicator from "../gaze/GazeIndicator";
@@ -43,6 +43,10 @@ const controlButtonStyle: React.CSSProperties = {
     borderRadius: 8,
 };
 
+// 👉 constants to keep the layout static
+const TYPED_ROW_MIN_HEIGHT = 30;     // px (keeps this row stable)
+const SUGGESTION_ROW_HEIGHT = 50;    // px (reserved from the start)
+
 const Keyboard: React.FC = () => {
     const [typedText, setTypedText] = useState("");
     const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -58,7 +62,7 @@ const Keyboard: React.FC = () => {
     const [showCal4, setShowCal4] = useState(false);
     const [showBias, setShowBias] = useState(false);
 
-    // 👇 NEW: receive gaze (pixels) and run dwell selection
+    // receive gaze (pixels) and run dwell selection
     const gaze = useGaze("ws://127.0.0.1:7777");
     const { progress } = useDwell(gaze.x, gaze.y, {
         stabilizationMs: 120,
@@ -142,31 +146,71 @@ const Keyboard: React.FC = () => {
     };
 
     return (
-        <div ref={containerRef} style={{ padding: 20, position: "relative" }}>
-            <div style={{ marginBottom: 10, fontSize: 18 }}>
-                <strong>Typed Text:</strong> {typedText}
+        <div
+            ref={containerRef}
+            style={{
+                padding: 20,
+                position: "relative",
+                maxWidth: 1200,
+                margin: "0 auto",
+            }}
+        >
+            {/* Typed text row (kept steady with min height) */}
+            <div
+                style={{
+                    marginBottom: 10,
+                    fontSize: 18,
+                    minHeight: TYPED_ROW_MIN_HEIGHT,
+                    display: "flex",
+                    alignItems: "center",
+                }}
+            >
+                <strong>Typed Text:&nbsp;</strong> <span>{typedText}</span>
             </div>
 
-            {/* word suggestions row */}
-            <div style={{ marginBottom: 15, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                {suggestions.map((word, index) => (
-                    <button
-                        key={index}
-                        onClick={() => handleSuggestionClick(word)}
-                        style={{
-                            padding: "14px 16px",
-                            fontSize: "22px",
-                            backgroundColor: "#e6f0ff",
-                            border: "1px solid #ccc",
-                            borderRadius: 8,
-                        }}
-                    >
-                        {word}
-                    </button>
-                ))}
+            {/* Suggestions row — fixed height from the start; no jumping */}
+            <div
+                style={{
+                    height: SUGGESTION_ROW_HEIGHT,         // <-- reserved space
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    marginBottom: 16,
+                    padding: "6px 4px",
+                    background: "#f8fbff",
+                    border: "1px solid #e1ecff",
+                    borderRadius: 10,
+                    overflowX: "auto",
+                    overflowY: "hidden",
+                    flexWrap: "nowrap",                     // keep single row
+                    whiteSpace: "nowrap",
+                }}
+            >
+                {suggestions.length === 0 ? (
+                    <span style={{ color: "#94a3b8", fontStyle: "italic", paddingLeft: 6 }}>
+            Suggestions will appear here…
+          </span>
+                ) : (
+                    suggestions.map((word, index) => (
+                        <button
+                            key={index}
+                            onClick={() => handleSuggestionClick(word)}
+                            style={{
+                                padding: "12px 14px",
+                                fontSize: "20px",
+                                backgroundColor: "#e6f0ff",
+                                border: "1px solid #c7dafd",
+                                borderRadius: 8,
+                                flex: "0 0 auto",
+                            }}
+                        >
+                            {word}
+                        </button>
+                    ))
+                )}
             </div>
 
-            {/* keyboard grid */}
+            {/* Keyboard grid (static position; not affected by suggestions row) */}
             <div
                 style={{
                     display: "grid",
@@ -188,7 +232,7 @@ const Keyboard: React.FC = () => {
                     ))}
             </div>
 
-            {/* controls */}
+            {/* Controls */}
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                 <button
                     onClick={() => {
@@ -243,10 +287,12 @@ const Keyboard: React.FC = () => {
                 <button onClick={() => setShowCal4(true)} style={controlButtonStyle}>
                     Recalibrate (4-pt)
                 </button>
-                <button onClick={() => setShowBias(true)} style={controlButtonStyle}>Top Bias</button>
+                <button onClick={() => setShowBias(true)} style={controlButtonStyle}>
+                    Top Bias
+                </button>
             </div>
 
-            {/* vowel popup */}
+            {/* Vowel popup */}
             {vowelPopup && (
                 <VowelPopup
                     predictions={vowelPopup.options}
@@ -255,10 +301,11 @@ const Keyboard: React.FC = () => {
                     position={vowelPopup.position}
                 />
             )}
+
             {showCal4 && <QuickAffineCalibration onDone={() => setShowCal4(false)} />}
             {showBias && <TopBiasTuner onClose={() => setShowBias(false)} />}
 
-            {/* 👇 NEW: always-on gaze dot + dwell progress ring */}
+            {/* Gaze dot + dwell progress ring */}
             <GazeIndicator x={gaze.x} y={gaze.y} progress={progress} />
         </div>
     );
